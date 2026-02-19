@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#3d4f25"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Oliveta"/>
+  <meta name="description" content="Gestione potatura oliveta con analisi AI"/>
+  <title>Oliveta Manager</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="apple-touch-icon" href="icons/icon-192.png"/>
+  <link rel="icon" type="image/png" href="icons/icon-192.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Lato:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body,#root{height:100%;overflow:hidden}
+    body{font-family:Lato,sans-serif;background:#3d4f25}
+    #splash{position:fixed;inset:0;background:#3d4f25;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;transition:opacity .5s}
+    #splash.fade{opacity:0;pointer-events:none}
+    #splash-emoji{font-size:72px}
+    #splash-title{font-family:'Playfair Display',serif;font-size:28px;color:#f5f0e8}
+    #splash-sub{font-size:14px;color:#c8d8a8;opacity:.8}
+  </style>
+</head>
+<body>
+
+<!-- Splash screen -->
+<div id="splash">
+  <div id="splash-emoji">🫒</div>
+  <div id="splash-title">Oliveta Manager</div>
+  <div id="splash-sub">Caricamento…</div>
+</div>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+// ─── COSTANTI ────────────────────────────────────────────────────
+const { useState, useEffect, useRef } = React;
+
+const SL = { da_potare:"Da potare", in_corso:"In corso", potato:"Potato", da_monitorare:"Da monitorare" };
+const SE = { da_potare:"🔴", in_corso:"🟡", potato:"🟢", da_monitorare:"🟣" };
+const SC = { da_potare:"#c0392b", in_corso:"#d4ac0d", potato:"#27ae60", da_monitorare:"#8e44ad" };
+const DC = ["#5a6e3a","#c4703a","#4a7a9b","#8b6914","#6b4a8a","#2e7d54","#a04050","#3a7a6b"];
+const PT = [
+  { id:"policonica", label:"🌿 Policonica", desc:"Più teste di salice su branche distanziate." },
+  { id:"vaso",       label:"🏺 Vaso",       desc:"3-4 branche a vaso aperto, senza asse centrale." },
+  { id:"monocono",   label:"🎄 Monocono",   desc:"Asse centrale con branche scalari." },
+  { id:"globo",      label:"⚽ Globo",      desc:"Forma sferica compatta." },
+  { id:"libera",     label:"🌳 Libera",     desc:"Interventi minimi di contenimento." },
+  { id:"altra",      label:"✏️ Altra",      desc:"Tipo personalizzato." },
+];
+const DB = "oliveta_v1_";
+
+// ─── STORAGE (localStorage) ───────────────────────────────────────
+function lsGet(key){ try{ var v=localStorage.getItem(DB+key); return v?JSON.parse(v):null; }catch(e){return null;} }
+function lsSet(key,val){ try{ localStorage.setItem(DB+key, JSON.stringify(val)); }catch(e){} }
+
+// ─── UTILITY ─────────────────────────────────────────────────────
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function readFile(file){
+  return new Promise(function(res){ var r=new FileReader(); r.onload=function(){res(r.result);}; r.readAsDataURL(file); });
+}
+function defAreas(){ return [
+  {id:uid(),label:"A",name:"Area A",color:"#5a6e3a",polygon:[]},
+  {id:uid(),label:"B",name:"Area B",color:"#c4703a",polygon:[]},
+  {id:uid(),label:"C",name:"Area C",color:"#4a7a9b",polygon:[]},
+]; }
+function hexRgba(hex,a){
+  var r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return "rgba("+r+","+g+","+b+","+a+")";
+}
+
+// ─── CSS ─────────────────────────────────────────────────────────
+const CSS = `
+  :root{--cream:#f5f0e8;--parch:#e8dfc8;--olive:#5a6e3a;--ol:#7a9150;--od:#3d4f25;--text:#2a2018;--muted:#7a6e5a;--white:#fffef9;--sh:rgba(42,32,24,.15)}
+  .app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background:var(--cream)}
+  .hdr{background:var(--od);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .hdr-title{font-family:'Playfair Display',serif;font-size:17px;color:var(--cream);flex:1}
+  .hdr-sub{font-size:11px;color:var(--parch);opacity:.75}
+  .avatar{width:34px;height:34px;border-radius:50%;background:var(--ol);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:white;cursor:pointer;border:2px solid rgba(255,255,255,.3);flex-shrink:0;-webkit-tap-highlight-color:transparent}
+  .tabbar{display:flex;background:var(--od);border-bottom:2px solid rgba(255,255,255,.1);flex-shrink:0}
+  .tabbtn{flex:1;padding:10px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;border:none;background:transparent;cursor:pointer;color:rgba(245,240,232,.5);font-size:9px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;-webkit-tap-highlight-color:transparent;border-bottom:3px solid transparent;transition:all .2s}
+  .tabbtn .icon{font-size:20px}
+  .tabbtn.on{color:var(--cream);border-bottom-color:#a8c870}
+  .content{flex:1;overflow:hidden;position:relative;min-height:0}
+  .screen{position:absolute;inset:0;overflow-y:auto;background:var(--cream)}
+  .screen.hidden{display:none}
+  .mapscreen{background:#2d3820;display:flex;flex-direction:column}
+  .upzone{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:28px 22px 20px;gap:16px;color:var(--cream);text-align:center}
+  .upbtn{background:var(--olive);color:white;border:none;border-radius:12px;padding:16px 28px;font-size:16px;font-weight:700;cursor:pointer;width:100%;max-width:280px;-webkit-tap-highlight-color:transparent}
+  .maparea{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:0}
+  .mapimg{display:block;max-width:100%;max-height:100%;object-fit:contain;user-select:none}
+  .maptoolbar{position:absolute;bottom:16px;right:12px;display:flex;flex-direction:column;gap:8px;z-index:20}
+  .mtbtn{width:52px;height:52px;border-radius:14px;border:none;cursor:pointer;font-size:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px var(--sh);background:var(--white);color:var(--text);-webkit-tap-highlight-color:transparent;transition:all .2s}
+  .mtbtn.on{background:var(--olive);color:white}
+  .mtbtn.green{background:#27ae60;color:white}
+  .mtbtn.red{background:#c62828;color:white}
+  .maphint{position:absolute;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.8);color:white;padding:10px 18px;border-radius:20px;font-size:13px;white-space:nowrap;pointer-events:none;z-index:20}
+  .listscreen{padding:12px}
+  .mgbtn{width:100%;margin-bottom:12px;padding:13px;background:var(--white);border:1.5px dashed var(--ol);border-radius:10px;cursor:pointer;font-size:14px;color:var(--olive);font-weight:700;text-align:center;-webkit-tap-highlight-color:transparent}
+  .acard{border:1px solid var(--parch);border-radius:12px;margin-bottom:10px;overflow:hidden;background:var(--white)}
+  .ahead{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .abadge{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:white;flex-shrink:0}
+  .aname{font-weight:700;font-size:14px}
+  .acnt{font-size:12px;color:var(--muted)}
+  .chev{font-size:10px;color:var(--muted);transition:transform .2s}
+  .chev.op{transform:rotate(180deg)}
+  .tlist{padding:8px;border-top:1px solid var(--parch)}
+  .ti{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;cursor:pointer;margin-bottom:4px;background:var(--cream);-webkit-tap-highlight-color:transparent}
+  .ti.sel{background:#eef4e8;border:1px solid var(--ol)}
+  .tnum{width:26px;height:26px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+  .tlbl{flex:1;font-size:13px;line-height:1.4}
+  .tdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .detscreen{padding:0;display:flex;flex-direction:column}
+  .dh{padding:13px 14px;background:var(--od);color:var(--cream);display:flex;align-items:center;gap:10px;flex-shrink:0}
+  .dtitle{font-family:'Playfair Display',serif;font-size:16px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .backbtn{background:rgba(255,255,255,.15);border:none;color:white;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;-webkit-tap-highlight-color:transparent;flex-shrink:0}
+  .dbody{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:14px;padding-bottom:30px}
+  .fg{display:flex;flex-direction:column;gap:5px}
+  .fl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  select,textarea,input[type=text]{width:100%;padding:11px 12px;border:1.5px solid var(--parch);border-radius:10px;font-family:Lato,sans-serif;font-size:15px;background:var(--cream);color:var(--text);outline:none;-webkit-appearance:none}
+  select:focus,textarea:focus,input[type=text]:focus{border-color:var(--ol)}
+  textarea{resize:vertical;min-height:72px}
+  .ptypes{display:flex;flex-wrap:wrap;gap:8px}
+  .ptbtn{padding:8px 13px;border-radius:20px;border:1.5px solid var(--parch);background:var(--cream);font-size:13px;cursor:pointer;color:var(--text);-webkit-tap-highlight-color:transparent}
+  .ptbtn.on{background:var(--olive);color:white;border-color:var(--olive);font-weight:700}
+  .pgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pthumb{aspect-ratio:1;border-radius:10px;overflow:hidden;border:1px solid var(--parch);position:relative}
+  .pthumb img{width:100%;height:100%;object-fit:cover}
+  .plbl{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);color:white;font-size:10px;padding:4px 6px;text-align:center}
+  .pdel{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:white;border:none;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+  .photo-btn{aspect-ratio:1;border-radius:10px;border:2px dashed var(--parch);background:var(--cream);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);font-size:13px;-webkit-tap-highlight-color:transparent;width:100%;padding:8px}
+  .photo-btn:active{border-color:var(--ol);background:#eef4e8}
+  .advbox{background:#eef4e8;border:1px solid #c5d9a8;border-radius:12px;padding:14px}
+  .advtitle{font-size:13px;font-weight:700;color:var(--od);margin-bottom:8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .advtype{font-size:11px;background:var(--olive);color:white;padding:3px 8px;border-radius:10px}
+  .advtext{font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap}
+  .aibtn{width:100%;padding:14px;background:var(--olive);color:white;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;-webkit-tap-highlight-color:transparent}
+  .aibtn:disabled{opacity:.6}
+  .delbtn{padding:13px;background:none;border:1.5px solid #e57373;border-radius:10px;color:#c62828;cursor:pointer;font-size:14px;width:100%;-webkit-tap-highlight-color:transparent}
+  .statsscreen{padding:14px}
+  .sgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+  .scard{background:var(--white);border-radius:12px;padding:14px;text-align:center;border:1px solid var(--parch)}
+  .snum{font-family:'Playfair Display',serif;font-size:28px;color:var(--od)}
+  .slbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .pbw{margin-bottom:10px}
+  .pbl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px}
+  .pbt{height:8px;background:var(--parch);border-radius:4px;overflow:hidden}
+  .pbf{height:100%;border-radius:4px}
+  .div{height:1px;background:var(--parch);margin:12px 0}
+  .sectit{font-family:'Playfair Display',serif;font-size:15px;color:var(--od);margin-bottom:10px}
+  .moverlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:200}
+  .modal{background:var(--white);border-radius:20px 20px 0 0;padding:22px 20px 30px;width:100%;max-width:640px;max-height:88vh;overflow-y:auto}
+  .mtit{font-family:'Playfair Display',serif;font-size:20px;margin-bottom:14px}
+  .mact{display:flex;gap:10px;margin-top:16px}
+  .btnp{flex:1;padding:14px;background:var(--olive);color:white;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:15px;-webkit-tap-highlight-color:transparent}
+  .btns{flex:1;padding:14px;background:var(--cream);color:var(--text);border:1px solid var(--parch);border-radius:10px;cursor:pointer;font-size:15px}
+  .arow{border:1px solid var(--parch);border-radius:10px;margin-bottom:10px;overflow:hidden}
+  .arow-top{display:flex;align-items:center;gap:8px;padding:10px;background:var(--cream)}
+  .arow-poly{padding:6px 10px 10px;display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .ci{width:38px;height:38px;border:none;padding:0;border-radius:8px;cursor:pointer;flex-shrink:0}
+  .li{width:48px;padding:7px;border:1px solid var(--parch);border-radius:8px;font-size:14px;font-weight:700;text-align:center;background:var(--cream)}
+  .ni{flex:1;padding:7px 10px;border:1px solid var(--parch);border-radius:8px;font-size:14px;background:var(--cream)}
+  .ibtn{background:none;border:none;cursor:pointer;font-size:18px;padding:6px;border-radius:8px;-webkit-tap-highlight-color:transparent}
+  .draw-btn{padding:7px 14px;border-radius:8px;border:1.5px solid;font-size:12px;cursor:pointer;font-weight:700;-webkit-tap-highlight-color:transparent}
+  .draw-btn.start{border-color:var(--olive);color:var(--olive);background:var(--cream)}
+  .draw-btn.clear{border-color:#c62828;color:#c62828;background:var(--cream)}
+  .setup{position:fixed;inset:0;background:var(--od);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px}
+  .setupcard{background:var(--white);border-radius:20px;padding:30px;width:100%;max-width:380px;text-align:center}
+  .stit{font-family:'Playfair Display',serif;font-size:26px;margin-bottom:8px;color:var(--od)}
+  .ssub{font-size:14px;color:var(--muted);margin-bottom:22px;line-height:1.6}
+  .sinput{width:100%;padding:14px;border:2px solid var(--parch);border-radius:12px;font-size:16px;background:var(--cream);outline:none;margin-bottom:14px;-webkit-appearance:none}
+  .sinput:focus{border-color:var(--olive)}
+  .sbtn{width:100%;padding:15px;background:var(--olive);color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .sbtn:disabled{opacity:.5}
+  .snote{font-size:12px;color:var(--muted);margin-top:14px;line-height:1.9}
+  .bk-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .bk-btn{width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;-webkit-tap-highlight-color:transparent}
+  .bk-btn.primary{background:var(--olive);color:white}
+  .bk-btn.secondary{background:var(--cream);color:var(--text);border:1.5px solid var(--parch)}
+  .bk-btn.danger{background:var(--cream);color:#c62828;border:1.5px solid #e57373}
+  .bk-info{background:var(--cream);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--muted);line-height:1.6;border:1px solid var(--parch)}
+  .bk-msg{padding:12px 14px;border-radius:10px;font-size:14px;font-weight:700;text-align:center;margin-bottom:12px}
+  .bk-msg.ok{background:#eef4e8;color:#2e7d32;border:1px solid #c5d9a8}
+  .bk-msg.err{background:#fdecea;color:#c62828;border:1px solid #e57373}
+  .bk-stats{display:flex;gap:8px;margin-bottom:16px}
+  .bk-stat{flex:1;background:var(--cream);border-radius:10px;padding:10px;text-align:center;border:1px solid var(--parch)}
+  .bk-stat-n{font-family:'Playfair Display',serif;font-size:22px;color:var(--od)}
+  .bk-stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  ::-webkit-scrollbar{width:3px}
+  ::-webkit-scrollbar-thumb{background:var(--parch);border-radius:10px}
+`;
+
+// ─── HIDDEN FILE INPUT ────────────────────────────────────────────
+function HiddenInput({refProp, accept, onChange}){
+  return <input ref={refProp} type="file" accept={accept||"image/*"} onChange={onChange}
+    style={{opacity:0,position:"fixed",top:"-200%",left:"-200%",width:"1px",height:"1px",pointerEvents:"none"}}/>;
+}
+
+// ─── SEZIONE FOTO ─────────────────────────────────────────────────
+function PhotoSection({treeId,type,photos,onAdd,onDel}){
+  var ref=useRef(null);
+  var label=type==="before"?"📸 Foto Prima":"✅ Foto Dopo";
+  var emoji=type==="before"?"📸":"✅";
+  function pick(){ if(ref.current){ref.current.value="";ref.current.click();} }
+  return <div className="fg">
+    <div className="fl">{label}</div>
+    <div className="pgrid">
+      {(photos||[]).map(function(ph){
+        return <div className="pthumb" key={ph.id}>
+          <img src={ph.data} alt=""/>
+          <div className="plbl">{ph.date}</div>
+          <button type="button" className="pdel" onClick={function(){onDel(treeId,type,ph.id);}}>✕</button>
+        </div>;
+      })}
+      <button type="button" className="photo-btn" onClick={pick}>
+        <span style={{fontSize:30}}>{emoji}</span><span>Aggiungi</span>
+      </button>
+    </div>
+    <HiddenInput refProp={ref} accept="image/*"
+      onChange={async function(e){var f=e.target.files&&e.target.files[0];if(f)await onAdd(treeId,type,f);e.target.value="";}}/>
+  </div>;
+}
+
+// ─── OVERLAY SVG ──────────────────────────────────────────────────
+function MapOverlay({mapImgRef,areas,trees,selId,drawingAreaId,drawPoints,onSelectTree}){
+  const [sz,setSz]=useState({w:0,h:0,top:0,left:0});
+  useEffect(function(){
+    function upd(){
+      if(mapImgRef.current){
+        var rc=mapImgRef.current.getBoundingClientRect();
+        setSz({w:rc.width,h:rc.height,top:rc.top,left:rc.left});
+      }
+    }
+    upd(); var t=setTimeout(upd,400);
+    window.addEventListener("resize",upd);
+    return function(){clearTimeout(t);window.removeEventListener("resize",upd);};
+  },[]);
+  if(!sz.w)return null;
+  return <svg style={{position:"fixed",top:sz.top,left:sz.left,width:sz.w,height:sz.h,pointerEvents:"none",zIndex:10}}
+    viewBox={"0 0 "+sz.w+" "+sz.h}>
+    {areas.map(function(area){
+      var poly=area.polygon||[];if(poly.length<3)return null;
+      var pts=poly.map(function(p){return (p.x/100*sz.w)+","+(p.y/100*sz.h);}).join(" ");
+      var cx=poly.reduce(function(s,p){return s+p.x;},0)/poly.length;
+      var cy=poly.reduce(function(s,p){return s+p.y;},0)/poly.length;
+      return <g key={area.id}>
+        <polygon points={pts} fill={hexRgba(area.color,0.2)} stroke={area.color} strokeWidth="1.5" strokeDasharray="5,3"/>
+        <text x={cx/100*sz.w} y={cy/100*sz.h} textAnchor="middle" dominantBaseline="middle"
+          fontSize="15" fontWeight="700" fill={area.color} stroke="white" strokeWidth="3" paintOrder="stroke"
+          style={{fontFamily:"Lato,sans-serif",pointerEvents:"none"}}>{area.label}</text>
+      </g>;
+    })}
+    {drawingAreaId&&drawPoints.length>0&&(function(){
+      var area=areas.find(function(a){return a.id===drawingAreaId;}),col=area?area.color:"#fff";
+      var pts=drawPoints.map(function(p){return (p.x/100*sz.w)+","+(p.y/100*sz.h);}).join(" ");
+      return <g>
+        {drawPoints.length>=3&&<polygon points={pts} fill={hexRgba(col,0.15)} stroke="none"/>}
+        <polyline points={pts} fill="none" stroke={col} strokeWidth="2" strokeDasharray="5,3"/>
+        {drawPoints.map(function(p,i){return <circle key={i} cx={p.x/100*sz.w} cy={p.y/100*sz.h} r="6" fill={col} stroke="white" strokeWidth="2"/>;  })}
+      </g>;
+    })()}
+    {trees.map(function(tree){
+      var area=areas.find(function(a){return a.id===tree.areaId;}),ac=area?area.color:"#5a6e3a",isSel=selId===tree.id;
+      var tx=tree.pos.x/100*sz.w,ty=tree.pos.y/100*sz.h;
+      return <g key={tree.id} transform={"translate("+tx+","+ty+")"}
+        onClick={function(e){e.stopPropagation();onSelectTree(tree.id);}}
+        style={{cursor:"pointer",pointerEvents:"all"}}>
+        {isSel&&<circle r="16" fill="none" stroke="white" strokeWidth="3" opacity=".9"/>}
+        <circle r="10" fill={SC[tree.status]} stroke="white" strokeWidth="2"/>
+        <circle r="4" fill={ac}/>
+        <text x="0" y="-15" textAnchor="middle" fontSize="12" fontWeight="700"
+          fill="white" stroke={ac} strokeWidth="3" paintOrder="stroke"
+          style={{fontFamily:"Lato,sans-serif",pointerEvents:"none"}}>{tree.name}</text>
+      </g>;
+    })}
+  </svg>;
+}
+
+// ─── APP PRINCIPALE ───────────────────────────────────────────────
+function App(){
+  const [user,          setUser]          = useState(null);
+  const [areas,         setAreas]         = useState([]);
+  const [trees,         setTrees]         = useState([]);
+  const [mapImg,        setMapImg]        = useState(null);
+  const [selId,         setSelId]         = useState(null);
+  const [screen,        setScreen]        = useState("map");
+  const [addMode,       setAddMode]       = useState(false);
+  const [pending,       setPending]       = useState(null);
+  const [openA,         setOpenA]         = useState({});
+  const [aiLoad,        setAiLoad]        = useState(false);
+  const [showSetup,     setShowSetup]     = useState(false);
+  const [showAreas,     setShowAreas]     = useState(false);
+  const [showBackup,    setShowBackup]    = useState(false);
+  const [drawingAreaId, setDrawingAreaId] = useState(null);
+  const [drawPoints,    setDrawPoints]    = useState([]);
+  const [importMsg,     setImportMsg]     = useState("");
+
+  const mapImgRef  = useRef(null);
+  const mapFileRef = useRef(null);
+  const importRef  = useRef(null);
+
+  // ── Caricamento da localStorage ──
+  useEffect(function(){
+    var u=lsGet("user");
+    if(u){ setUser(u); }else{ setShowSetup(true); return; }
+    var a=lsGet("areas"); setAreas(a||defAreas());
+    var t=lsGet("trees"); if(t)setTrees(t);
+    var m=lsGet("map");   if(m)setMapImg(m);
+    // Nascondi splash
+    setTimeout(function(){
+      var sp=document.getElementById("splash");
+      if(sp){sp.classList.add("fade");setTimeout(function(){sp.style.display="none";},500);}
+    },600);
+  },[]);
+
+  function saveUser(n) { setUser(n);     lsSet("user",n);   }
+  function saveAreas(a){ setAreas(a);    lsSet("areas",a);  }
+  function saveTrees(t){ setTrees(t);    lsSet("trees",t);  }
+  function saveMap(img){ setMapImg(img); lsSet("map",img);  }
+
+  function updTree(id,patch){ saveTrees(trees.map(function(t){return t.id===id?Object.assign({},t,patch):t;})); }
+  function delTree(id)      { saveTrees(trees.filter(function(t){return t.id!==id;})); setSelId(null); setScreen("list"); }
+
+  // ── Upload mappa ──
+  async function handleMapFile(file){
+    if(!file)return;
+    var b64=await readFile(file);
+    var img=new Image();
+    img.onload=function(){
+      var max=1600,w=img.width,h=img.height;
+      if(w>max||h>max){var s=Math.min(max/w,max/h);w=Math.round(w*s);h=Math.round(h*s);}
+      var cv=document.createElement("canvas");cv.width=w;cv.height=h;
+      cv.getContext("2d").drawImage(img,0,0,w,h);
+      saveMap(cv.toDataURL("image/jpeg",0.85));
+    };
+    img.src=b64;
+  }
+
+  // ── Coordinate mappa ──
+  function getXY(e){
+    var el=mapImgRef.current;if(!el)return{x:50,y:50};
+    var rc=el.getBoundingClientRect();
+    var cx=e.touches?e.touches[0].clientX:e.clientX;
+    var cy=e.touches?e.touches[0].clientY:e.clientY;
+    return{x:((cx-rc.left)/rc.width)*100,y:((cy-rc.top)/rc.height)*100};
+  }
+  function handleMapTap(e){
+    if(drawingAreaId){setDrawPoints(function(pts){return pts.concat([getXY(e)]);});return;}
+    if(addMode)setPending(getXY(e));
+  }
+
+  // ── Poligoni ──
+  function finishDrawing(){
+    if(drawPoints.length<3)return;
+    saveAreas(areas.map(function(a){return a.id===drawingAreaId?Object.assign({},a,{polygon:drawPoints}):a;}));
+    setDrawingAreaId(null);setDrawPoints([]);
+  }
+  function cancelDrawing(){ setDrawingAreaId(null);setDrawPoints([]); }
+  function undoPoint()    { setDrawPoints(function(pts){return pts.slice(0,-1);}); }
+  function clearPoly(id)  { saveAreas(areas.map(function(a){return a.id===id?Object.assign({},a,{polygon:[]}):a;})); }
+
+  // ── Aggiunta olivo ──
+  function addTree(areaId,name){
+    var area=areas.find(function(a){return a.id===areaId;});
+    var cnt=trees.filter(function(t){return t.areaId===areaId;}).length+1;
+    var t={id:uid(),areaId:areaId,name:name||(area.label+cnt),status:"da_potare",
+      pruningType:"policonica",pos:pending||{x:50,y:50},notes:"",advice:"",adviceType:"",
+      photosBefore:[],photosAfter:[],createdAt:new Date().toISOString()};
+    saveTrees(trees.concat([t]));
+    setPending(null);setAddMode(false);setSelId(t.id);setScreen("detail");
+    setOpenA(function(o){var n=Object.assign({},o);n[areaId]=true;return n;});
+  }
+
+  // ── AI ──
+  async function getAI(tree){
+    setAiLoad(true);
+    var area=areas.find(function(a){return a.id===tree.areaId;});
+    var ptype=PT.find(function(p){return p.id===tree.pruningType;})||PT[0];
+    var allPh=(tree.photosBefore||[]).concat(tree.photosAfter||[]).slice(0,3);
+    var imgs=allPh.map(function(ph){
+      var parts=ph.data.split(","),mt=(parts[0].match(/data:([^;]+)/)||["","image/jpeg"])[1];
+      return{type:"image",source:{type:"base64",media_type:mt,data:parts[1]}};
+    });
+    var prompt="Sei un agronomo esperto in olivicoltura.\n"+(imgs.length?"Analizza le foto allegate.\n\n":"")
+      +"DATI:\n- Area: "+(area?area.name:"")+"\n- Olivo: "+tree.name+"\n- Stato: "+SL[tree.status]
+      +"\n- Tipo potatura: "+ptype.label+" - "+ptype.desc+"\n- Note: "+(tree.notes||"nessuna")
+      +"\n\nRispondi in italiano:\n**VALUTAZIONE** (2-3 righe)\n\n**OBIETTIVO "+ptype.label.toUpperCase()
+      +"**\n\n**OPERAZIONI DA ESEGUIRE** (max 6 punti)\n\n**PRIORITA E PERIODO**\n\n**ATTENZIONE** (errori da evitare)";
+    try{
+      var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
+        headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true"},
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,
+          messages:[{role:"user",content:imgs.concat([{type:"text",text:prompt}])}]})});
+      var data=await res.json();
+      var text=(data.content||[]).map(function(c){return c.text||"";}).join("")||"Nessuna risposta.";
+      updTree(tree.id,{advice:text,adviceType:ptype.label});
+    }catch(e){ updTree(tree.id,{advice:"Errore di rete. Controlla la connessione.",adviceType:""}); }
+    setAiLoad(false);
+  }
+
+  // ── Foto ──
+  async function addPhoto(treeId,type,file){
+    var b64=await readFile(file),key=type==="before"?"photosBefore":"photosAfter";
+    var entry={id:uid(),data:b64,date:new Date().toLocaleDateString("it-IT")};
+    saveTrees(trees.map(function(t){
+      if(t.id!==treeId)return t;
+      var up=Object.assign({},t);up[key]=(t[key]||[]).concat([entry]);return up;
+    }));
+  }
+  function delPhoto(treeId,type,photoId){
+    var key=type==="before"?"photosBefore":"photosAfter";
+    saveTrees(trees.map(function(t){
+      if(t.id!==treeId)return t;
+      var up=Object.assign({},t);up[key]=(t[key]||[]).filter(function(p){return p.id!==photoId;});return up;
+    }));
+  }
+
+  // ── Export / Import ──
+  function exportData(){
+    var payload={version:2,exportedAt:new Date().toISOString(),user:user,areas:areas,trees:trees,map:mapImg};
+    var blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement("a");
+    a.href=url;a.download="oliveta-backup-"+new Date().toISOString().slice(0,10)+".json";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  }
+  async function importData(file){
+    if(!file)return;
+    try{
+      var text=await file.text(),data=JSON.parse(text);
+      if(!data.version||!data.areas||!data.trees){setImportMsg("❌ File non valido.");return;}
+      if(data.user) saveUser(data.user);
+      if(data.areas)saveAreas(data.areas);
+      if(data.trees)saveTrees(data.trees);
+      if(data.map)  saveMap(data.map);
+      setImportMsg("✅ Ripristinati "+data.trees.length+" olivi e "+data.areas.length+" aree.");
+      setTimeout(function(){setShowBackup(false);setImportMsg("");},2500);
+    }catch(e){setImportMsg("❌ Errore durante l'importazione.");}
+  }
+
+  var tot=trees.length,
+      pot=trees.filter(function(t){return t.status==="potato";}).length,
+      inc=trees.filter(function(t){return t.status==="in_corso";}).length,
+      dap=trees.filter(function(t){return t.status==="da_potare";}).length;
+  var sel=trees.find(function(t){return t.id===selId;}),
+      selA=sel?areas.find(function(a){return a.id===sel.areaId;}):null;
+  var activeScreen=screen==="detail"&&sel?"detail":screen==="detail"?"list":screen;
+  var mapHint=drawingAreaId
+    ?(drawPoints.length===0?"Tocca per aggiungere i vertici"
+      :drawPoints.length<3?"Aggiungi ancora "+(3-drawPoints.length)+" punt"+(3-drawPoints.length===1?"o":"i")
+      :"Aggiungi punti o ✅ per chiudere")
+    :addMode?"🌱 Tocca per posizionare l'olivo":null;
+
+  if(showSetup) return <Setup onDone={function(n){saveUser(n);setShowSetup(false);
+    setTimeout(function(){var sp=document.getElementById("splash");if(sp)sp.style.display="none";},100);
+  }}/>;
+
+  return <>
+    <style>{CSS}</style>
+    <div className="app">
+      <div className="hdr">
+        <span style={{fontSize:22}}>🫒</span>
+        <div style={{flex:1}}>
+          <div className="hdr-title">Oliveta Manager</div>
+          <div className="hdr-sub">{pot} potati · {inc} in corso · {dap} da fare</div>
+        </div>
+        <div className="avatar" onClick={function(){setShowBackup(true);}}>{user?user[0].toUpperCase():"?"}</div>
+      </div>
+
+      {activeScreen!=="detail"&&<div className="tabbar">
+        {[["map","🗺️","Mappa"],["list","🫒","Olivi"],["stats","📊","Stats"]].map(function(p){
+          return <button key={p[0]} className={"tabbtn"+(activeScreen===p[0]?" on":"")}
+            onClick={function(){setScreen(p[0]);setAddMode(false);}}>
+            <span className="icon">{p[1]}</span>{p[2]}
+          </button>;
+        })}
+      </div>}
+
+      <div className="content">
+
+        {/* MAPPA */}
+        <div className={"screen mapscreen"+(activeScreen==="map"?"":" hidden")}>
+          {!mapImg?(
+            <div className="upzone">
+              <div style={{fontSize:22,fontFamily:"'Playfair Display',serif"}}>🗺️ Carica la tua mappa</div>
+              <div style={{fontSize:14,opacity:.8,lineHeight:1.6}}>Screenshot di Google Maps o foto JPG/PNG dall'alto dell'oliveta.</div>
+              <button className="upbtn" onClick={function(){mapFileRef.current&&mapFileRef.current.click();}}>📂 Scegli file JPG / PNG</button>
+              <div style={{fontSize:12,opacity:.45}}>Privata — salvata sul tuo dispositivo</div>
+            </div>
+          ):(
+            <div className="maparea" onClick={handleMapTap}>
+              <img ref={mapImgRef} src={mapImg} alt="Mappa" className="mapimg" draggable="false"/>
+              <MapOverlay mapImgRef={mapImgRef} areas={areas} trees={trees} selId={selId}
+                drawingAreaId={drawingAreaId} drawPoints={drawPoints}
+                onSelectTree={function(id){if(!drawingAreaId&&!addMode){setSelId(id);setScreen("detail");}}}/>
+              <div className="maptoolbar">
+                {!drawingAreaId&&<>
+                  <button className={"mtbtn"+(addMode?" on":"")} onClick={function(e){e.stopPropagation();setAddMode(function(m){return !m;});}}>{addMode?"🌱":"➕"}</button>
+                  <button className="mtbtn" onClick={function(e){e.stopPropagation();mapFileRef.current&&mapFileRef.current.click();}}>🗺️</button>
+                </>}
+                {drawingAreaId&&<>
+                  {drawPoints.length>=3&&<button className="mtbtn green" onClick={function(e){e.stopPropagation();finishDrawing();}}>✅</button>}
+                  {drawPoints.length>0&&<button className="mtbtn" onClick={function(e){e.stopPropagation();undoPoint();}}>↩️</button>}
+                  <button className="mtbtn red" onClick={function(e){e.stopPropagation();cancelDrawing();}}>✕</button>
+                </>}
+              </div>
+              {mapHint&&<div className="maphint">{mapHint}</div>}
+            </div>
+          )}
+        </div>
+
+        {/* OLIVI */}
+        <div className={"screen listscreen"+(activeScreen==="list"?"":" hidden")}>
+          <button className="mgbtn" onClick={function(){setShowAreas(true);}}>⚙️ Gestisci aree e poligoni</button>
+          {areas.map(function(area){
+            var at=trees.filter(function(t){return t.areaId===area.id;}),isO=!!openA[area.id];
+            return <div className="acard" key={area.id}>
+              <div className="ahead" onClick={function(){setOpenA(function(o){var n=Object.assign({},o);n[area.id]=!n[area.id];return n;});}}>
+                <div className="abadge" style={{background:area.color}}>{area.label}</div>
+                <div style={{flex:1}}>
+                  <div className="aname">{area.name}</div>
+                  <div className="acnt">{at.length} olivi · {at.filter(function(t){return t.status==="potato";}).length} potati · {area.polygon&&area.polygon.length>2?"✏️ disegnata":"⬜ nessun confine"}</div>
+                </div>
+                <span className={"chev"+(isO?" op":"")}>▼</span>
+              </div>
+              {isO&&<div className="tlist">
+                {at.map(function(tree){
+                  var pt=PT.find(function(p){return p.id===tree.pruningType;});
+                  return <div key={tree.id} className={"ti"+(selId===tree.id?" sel":"")}
+                    onClick={function(){setSelId(tree.id);setScreen("detail");}}>
+                    <div className="tnum" style={{background:area.color}}>{tree.name}</div>
+                    <div className="tlbl">
+                      <div>{tree.notes?tree.notes.slice(0,30)+(tree.notes.length>30?"…":""):"—"}</div>
+                      <div style={{fontSize:11,color:"var(--muted)"}}>{pt?pt.label:""}</div>
+                    </div>
+                    <span className="tdot" style={{background:SC[tree.status]}}/>
+                  </div>;
+                })}
+                {at.length===0&&<div style={{padding:"10px 12px",fontSize:13,color:"var(--muted)"}}>Nessun olivo registrato</div>}
+              </div>}
+            </div>;
+          })}
+        </div>
+
+        {/* STATS */}
+        <div className={"screen statsscreen"+(activeScreen==="stats"?"":" hidden")}>
+          <div className="sgrid">
+            <div className="scard"><div className="snum">{tot}</div><div className="slbl">Totale</div></div>
+            <div className="scard"><div className="snum">{tot?Math.round(pot/tot*100):0}%</div><div className="slbl">Completato</div></div>
+            <div className="scard"><div className="snum">{pot}</div><div className="slbl">Potati ✅</div></div>
+            <div className="scard"><div className="snum">{inc}</div><div className="slbl">In corso</div></div>
+          </div>
+          <div className="sectit">Per stato</div>
+          {[{l:"Potati",c:pot,col:"#27ae60"},{l:"In corso",c:inc,col:"#d4ac0d"},{l:"Da potare",c:dap,col:"#c0392b"},{l:"Monitorare",c:trees.filter(function(t){return t.status==="da_monitorare";}).length,col:"#8e44ad"}].map(function(x){
+            return <div className="pbw" key={x.l}><div className="pbl"><span>{x.l}</span><span>{x.c}</span></div><div className="pbt"><div className="pbf" style={{width:tot?(x.c/tot*100)+"%":"0%",background:x.col}}/></div></div>;
+          })}
+          <div className="div"/>
+          <div className="sectit">Per area</div>
+          {areas.map(function(area){
+            var at=trees.filter(function(t){return t.areaId===area.id;}),ap=at.filter(function(t){return t.status==="potato";}).length;
+            return <div className="pbw" key={area.id}><div className="pbl"><span><b>{area.label}</b> {area.name}</span><span style={{fontSize:11}}>{ap}/{at.length}</span></div><div className="pbt"><div className="pbf" style={{width:at.length?(ap/at.length*100)+"%":"0%",background:area.color}}/></div></div>;
+          })}
+        </div>
+
+        {/* DETTAGLIO */}
+        <div className={"screen detscreen"+(activeScreen==="detail"?"":" hidden")}>
+          {sel&&<>
+            <div className="dh">
+              <div style={{width:30,height:30,borderRadius:8,background:selA?selA.color:"#888",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:700,fontSize:14,flexShrink:0}}>{selA?selA.label:""}</div>
+              <div className="dtitle">Olivo {sel.name}</div>
+              <button className="backbtn" onClick={function(){setScreen("list");}}>← Lista</button>
+            </div>
+            <div className="dbody">
+              <div className="fg"><div className="fl">Stato</div>
+                <select value={sel.status} onChange={function(e){updTree(sel.id,{status:e.target.value});}}>
+                  {Object.keys(SL).map(function(v){return <option key={v} value={v}>{SE[v]} {SL[v]}</option>;})}
+                </select>
+              </div>
+              <div className="fg"><div className="fl">Etichetta</div>
+                <input type="text" value={sel.name} onChange={function(e){updTree(sel.id,{name:e.target.value});}}/>
+              </div>
+              <div className="fg"><div className="fl">✂️ Tipo di potatura</div>
+                <div className="ptypes">
+                  {PT.map(function(pt){
+                    return <button key={pt.id} type="button" className={"ptbtn"+(sel.pruningType===pt.id?" on":"")}
+                      onClick={function(){updTree(sel.id,{pruningType:pt.id,advice:"",adviceType:""});}}>{pt.label}</button>;
+                  })}
+                </div>
+                {sel.pruningType&&<div style={{fontSize:12,color:"var(--muted)",lineHeight:1.5,marginTop:5,padding:"8px 10px",background:"var(--cream)",borderRadius:8}}>
+                  {(PT.find(function(p){return p.id===sel.pruningType;})||{}).desc}
+                </div>}
+              </div>
+              <div className="fg"><div className="fl">📝 Note</div>
+                <textarea value={sel.notes} placeholder="Es: chioma sbilanciata, succhioni abbondanti…" onChange={function(e){updTree(sel.id,{notes:e.target.value});}}/>
+              </div>
+              <PhotoSection treeId={sel.id} type="before" photos={sel.photosBefore||[]} onAdd={addPhoto} onDel={delPhoto}/>
+              <PhotoSection treeId={sel.id} type="after"  photos={sel.photosAfter||[]}  onAdd={addPhoto} onDel={delPhoto}/>
+              <div className="fg"><div className="fl">🤖 Analisi AI Potatura</div>
+                {sel.advice&&<div className="advbox">
+                  <div className="advtitle">🫒 Agronomo virtuale{sel.adviceType&&<span className="advtype">{sel.adviceType}</span>}</div>
+                  <div className="advtext">{sel.advice}</div>
+                </div>}
+                <button type="button" className="aibtn" disabled={aiLoad} onClick={function(){getAI(sel);}}>
+                  {aiLoad?"⏳ Analisi in corso…":sel.advice?"🔄 Aggiorna":"🤖 Analizza e dai consigli"}
+                </button>
+                <div style={{fontSize:12,color:"var(--muted)",textAlign:"center",marginTop:4}}>
+                  {(sel.photosBefore||[]).length+(sel.photosAfter||[]).length>0
+                    ?"📸 "+((sel.photosBefore||[]).length+(sel.photosAfter||[]).length)+" foto allegate"
+                    :"💡 Aggiungi foto per un'analisi più precisa"}
+                </div>
+              </div>
+              <button type="button" className="delbtn" onClick={function(){if(confirm("Eliminare questo olivo?"))delTree(sel.id);}}>🗑️ Elimina olivo</button>
+            </div>
+          </>}
+        </div>
+      </div>
+
+      <HiddenInput refProp={mapFileRef} accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+        onChange={async function(e){var f=e.target.files&&e.target.files[0];if(f)await handleMapFile(f);e.target.value="";}}/>
+      <HiddenInput refProp={importRef} accept=".json,application/json"
+        onChange={async function(e){var f=e.target.files&&e.target.files[0];if(f)await importData(f);e.target.value="";}}/>
+
+      {pending&&<AddModal areas={areas} onConfirm={addTree} onCancel={function(){setPending(null);setAddMode(false);}}/>}
+      {showAreas&&<AreasModal areas={areas}
+        onSave={function(a){saveAreas(a);setShowAreas(false);}}
+        onClose={function(){setShowAreas(false);}}
+        onStartDraw={function(id){setShowAreas(false);setAddMode(false);setDrawingAreaId(id);setDrawPoints([]);setScreen("map");}}
+        onClearPoly={clearPoly}/>}
+      {showBackup&&<BackupModal user={user} trees={trees} areas={areas} importMsg={importMsg}
+        onExport={exportData}
+        onImport={function(){importRef.current&&importRef.current.click();}}
+        onChangeUser={function(){setShowBackup(false);setShowSetup(true);}}
+        onClose={function(){setShowBackup(false);setImportMsg("");}}/>}
+    </div>
+  </>;
+}
+
+// ─── SETUP ───────────────────────────────────────────────────────
+function Setup({onDone}){
+  const [name,setName]=useState("");
+  return <div className="setup">
+    <div className="setupcard">
+      <div style={{fontSize:52,marginBottom:10}}>🫒</div>
+      <div className="stit">Oliveta Manager</div>
+      <div className="ssub">I dati vengono salvati <strong>sul tuo dispositivo</strong>.<br/>Usa il backup per spostarli su altri dispositivi.</div>
+      <input className="sinput" type="text" placeholder="Il tuo nome o soprannome…"
+        value={name} onChange={function(e){setName(e.target.value);}}
+        onKeyDown={function(e){if(e.key==="Enter"&&name.trim())onDone(name.trim());}}/>
+      <button className="sbtn" disabled={!name.trim()} onClick={function(){onDone(name.trim());}}>Inizia →</button>
+      <div className="snote">📱 Funziona offline · 🗺️ Mappa JPG/PNG<br/>✏️ Disegna le aree · 🤖 Analisi AI con foto</div>
+    </div>
+  </div>;
+}
+
+// ─── MODALE AGGIUNTA OLIVO ────────────────────────────────────────
+function AddModal({areas,onConfirm,onCancel}){
+  const [areaId,setAreaId]=useState(areas[0]?areas[0].id:"");
+  const [name,setName]=useState("");
+  var sa=areas.find(function(a){return a.id===areaId;});
+  return <div className="moverlay"><div className="modal">
+    <div className="mtit">🌱 Nuovo Olivo</div>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div className="fg"><div className="fl">Area</div>
+        <select value={areaId} onChange={function(e){setAreaId(e.target.value);}}>
+          {areas.map(function(a){return <option key={a.id} value={a.id}>{a.label} — {a.name}</option>;})}
+        </select>
+      </div>
+      <div className="fg"><div className="fl">Etichetta (opzionale)</div>
+        <input type="text" value={name} placeholder={"Es: "+(sa?sa.label:"A")+"1"} onChange={function(e){setName(e.target.value);}}/>
+      </div>
+    </div>
+    <div className="mact">
+      <button className="btns" onClick={onCancel}>Annulla</button>
+      <button className="btnp" onClick={function(){onConfirm(areaId,name);}}>Aggiungi</button>
+    </div>
+  </div></div>;
+}
+
+// ─── MODALE GESTIONE AREE ─────────────────────────────────────────
+function AreasModal({areas,onSave,onClose,onStartDraw,onClearPoly}){
+  const [local,setLocal]=useState(areas.map(function(a){return Object.assign({},a);}));
+  function upd(id,patch){setLocal(local.map(function(a){return a.id===id?Object.assign({},a,patch):a;}));}
+  return <div className="moverlay"><div className="modal">
+    <div className="mtit">⚙️ Gestisci Aree</div>
+    <div style={{fontSize:13,color:"var(--muted)",marginBottom:14,lineHeight:1.5}}>
+      Modifica nome e colore. Usa <b>✏️ Disegna</b> per tracciare il confine sulla mappa.
+    </div>
+    {local.map(function(area){
+      var hasPoly=area.polygon&&area.polygon.length>2;
+      return <div className="arow" key={area.id}>
+        <div className="arow-top">
+          <input type="color" value={area.color} className="ci" onChange={function(e){upd(area.id,{color:e.target.value});}}/>
+          <input className="li" type="text" value={area.label} maxLength={3} onChange={function(e){upd(area.id,{label:e.target.value.toUpperCase()});}} placeholder="A"/>
+          <input className="ni" type="text" value={area.name} onChange={function(e){upd(area.id,{name:e.target.value});}} placeholder="Nome area"/>
+          <button type="button" className="ibtn" onClick={function(){setLocal(local.filter(function(a){return a.id!==area.id;}));}}>🗑️</button>
+        </div>
+        <div className="arow-poly">
+          {hasPoly
+            ?<><span style={{color:"#27ae60",fontWeight:700}}>✅ {area.polygon.length} punti</span>
+                <button type="button" className="draw-btn clear" onClick={function(){upd(area.id,{polygon:[]});onClearPoly(area.id);}}>Cancella</button></>
+            :<span>⬜ Nessun confine</span>}
+          <button type="button" className="draw-btn start" style={{marginLeft:"auto"}} onClick={function(){onSave(local);onStartDraw(area.id);}}>✏️ Disegna</button>
+        </div>
+      </div>;
+    })}
+    <button type="button" onClick={function(){
+      var i=local.length,lbl=i<26?String.fromCharCode(65+i):"Z"+i;
+      setLocal(local.concat([{id:uid(),label:lbl,name:"Area "+lbl,color:DC[i%DC.length],polygon:[]}]));
+    }} style={{width:"100%",padding:"12px",background:"var(--cream)",border:"1.5px dashed var(--ol)",borderRadius:10,cursor:"pointer",fontSize:14,color:"var(--olive)",fontWeight:700,marginTop:4}}>
+      ＋ Aggiungi area
+    </button>
+    <div className="mact">
+      <button className="btns" onClick={onClose}>Chiudi</button>
+      <button className="btnp" onClick={function(){onSave(local);}}>Salva</button>
+    </div>
+  </div></div>;
+}
+
+// ─── MODALE BACKUP ────────────────────────────────────────────────
+function BackupModal({user,trees,areas,importMsg,onExport,onImport,onChangeUser,onClose}){
+  var pot=trees.filter(function(t){return t.status==="potato";}).length;
+  return <div className="moverlay"><div className="modal">
+    <div className="mtit">⚙️ Dati e Backup</div>
+    <div className="bk-stats">
+      <div className="bk-stat"><div className="bk-stat-n">{trees.length}</div><div className="bk-stat-l">Olivi</div></div>
+      <div className="bk-stat"><div className="bk-stat-n">{areas.length}</div><div className="bk-stat-l">Aree</div></div>
+      <div className="bk-stat"><div className="bk-stat-n">{pot}</div><div className="bk-stat-l">Potati</div></div>
+    </div>
+    {importMsg&&<div className={"bk-msg "+(importMsg.startsWith("✅")?"ok":"err")}>{importMsg}</div>}
+    <div className="bk-row">
+      <div className="fl" style={{marginBottom:4}}>💾 Salva backup</div>
+      <button type="button" className="bk-btn primary" onClick={onExport}>⬇️ Scarica oliveta-backup.json</button>
+      <div className="bk-info">Scarica un file con tutti i tuoi dati. Conservalo su Google Drive o nella cartella Download.</div>
+    </div>
+    <div className="bk-row">
+      <div className="fl" style={{marginBottom:4}}>📂 Ripristina backup</div>
+      <button type="button" className="bk-btn secondary" onClick={onImport}>⬆️ Carica oliveta-backup.json</button>
+      <div className="bk-info">Seleziona un backup precedente per ripristinare olivi, aree e mappa. I dati attuali verranno sostituiti.</div>
+    </div>
+    <div className="bk-row">
+      <div className="fl" style={{marginBottom:4}}>👤 Account</div>
+      <button type="button" className="bk-btn danger" onClick={onChangeUser}>✏️ Cambia nome utente ({user})</button>
+    </div>
+    <button type="button" className="btns" style={{width:"100%",marginTop:4}} onClick={onClose}>Chiudi</button>
+  </div></div>;
+}
+
+// ─── AVVIO ────────────────────────────────────────────────────────
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+</script>
+
+<script>
+  // Registra Service Worker per funzionamento offline
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function() {
+      navigator.serviceWorker.register("./sw.js")
+        .then(function(reg){ console.log("SW registrato:", reg.scope); })
+        .catch(function(err){ console.log("SW errore:", err); });
+    });
+  }
+</script>
+</body>
+</html>

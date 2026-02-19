@@ -314,11 +314,7 @@ function App(){
     var a=lsGet("areas"); setAreas(a||defAreas());
     var t=lsGet("trees"); if(t)setTrees(t);
     var m=lsGet("map");   if(m)setMapImg(m);
-    // Nascondi splash
-    setTimeout(function(){
-      var sp=document.getElementById("splash");
-      if(sp){sp.classList.add("fade");setTimeout(function(){sp.style.display="none";},500);}
-    },600);
+    // splash nascosta dal timer globale
   },[]);
 
   function saveUser(n) { setUser(n);     lsSet("user",n);   }
@@ -460,7 +456,7 @@ function App(){
     :addMode?"🌱 Tocca per posizionare l'olivo":null;
 
   if(showSetup) return <Setup onDone={function(n){saveUser(n);setShowSetup(false);
-    setTimeout(function(){var sp=document.getElementById("splash");if(sp)sp.style.display="none";},100);
+
   }}/>;
 
   return <>
@@ -759,6 +755,12 @@ root.render(<App/>);
 </script>
 
 <script>
+  // Nascondi splash sempre dopo max 1.5 secondi
+  setTimeout(function(){
+    var sp = document.getElementById("splash");
+    if (sp) { sp.classList.add("fade"); setTimeout(function(){ sp.style.display="none"; }, 500); }
+  }, 1500);
+
   // Registra Service Worker per funzionamento offline
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", function() {

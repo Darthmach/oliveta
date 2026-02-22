@@ -682,7 +682,7 @@ function Setup({apiKey,onDone}){
   const [key,setKey]=useState(apiKey||"");
   return <div className="setup">
     <div className="setupcard">
-      <div style={{fontSize:52,marginBottom:10}}>\ud83e\uded2</div>
+      <div style={{fontSize:52,marginBottom:10}}>🫒</div>
       <div className="stit">Oliveta Manager</div>
       <div className="ssub">I dati vengono salvati <strong>sul tuo dispositivo</strong>.<br/>Usa il backup per spostarli su altri dispositivi.</div>
       <input className="sinput" type="text" placeholder="Il tuo nome o soprannome\u2026"
@@ -696,7 +696,7 @@ function Setup({apiKey,onDone}){
         La chiave è salvata solo sul tuo dispositivo.
       </div>
       <button className="sbtn" disabled={!name.trim()||!key.trim()} onClick={function(){onDone(name.trim(),key.trim());}}>Inizia →</button>
-      <div className="snote">\ud83d\udcf1 Funziona offline \u00b7 \ud83d\uddfa\ufe0f Mappa JPG/PNG<br/>\u270f\ufe0f Disegna le aree \u00b7 \ud83e\udd16 Analisi AI con foto</div>
+      <div className="snote">📱 Funziona offline · 🗺️ Mappa JPG/PNG<br/>✏️ Disegna le aree · 🤖 Analisi AI con foto</div>
     </div>
   </div>;
 }

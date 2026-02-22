@@ -1,4 +1,4 @@
-const CACHE = "oliveta-v1";
+const CACHE = "oliveta-v2";
 const ASSETS = [
   "./index.html",
   "./manifest.json",
@@ -22,7 +22,6 @@ self.addEventListener("activate", function(e){
 });
 
 self.addEventListener("fetch", function(e){
-  // Per le chiamate API Anthropic non usare cache
   if(e.request.url.includes("anthropic.com")){
     e.respondWith(fetch(e.request));
     return;

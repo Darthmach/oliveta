@@ -310,6 +310,11 @@ function App(){
 
   // \u2500\u2500 Caricamento da localStorage \u2500\u2500
   useEffect(function(){
+    // Nascondi splash in ogni caso
+    setTimeout(function(){
+      var sp=document.getElementById("splash");
+      if(sp){sp.classList.add("fade");setTimeout(function(){sp.style.display="none";},500);}
+    },600);
     var u=lsGet("user");
     if(u){ setUser(u); }else{ setShowSetup(true); return; }
     var k=lsGet("apikey"); if(k)setApiKey(k);

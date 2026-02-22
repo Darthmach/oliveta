@@ -388,7 +388,10 @@ function App(){
   }
 
   // ── AI ──
-  async function getAI(tree){
+  async function getAI(){
+    // Legge SEMPRE il tree piu aggiornato dallo state, non da parametri vecchi
+    var tree=trees.find(function(t){return t.id===selId;});
+    if(!tree)return;
     if(!apiKey||!apiKey.trim()){ updTree(tree.id,{advice:"❌ Chiave API mancante. Tocca l'avatar → Cambia nome utente → inserisci la chiave sk-ant-…",adviceType:""}); return; }
     setAiLoad(true);
     var area=areas.find(function(a){return a.id===tree.areaId;});
@@ -706,13 +709,17 @@ Rispondi in italiano con questa struttura:\
                   <div className="advtitle">🫒 Agronomo virtuale{sel.adviceType&&<span className="advtype">{sel.adviceType}</span>}</div>
                   <div className="advtext">{sel.advice}</div>
                 </div>}
-                <button type="button" className="aibtn" disabled={aiLoad} onClick={function(){getAI(sel);}}>
+                <button type="button" className="aibtn" disabled={aiLoad} onClick={function(){getAI();}}>
                   {aiLoad?"⏳ Analisi in corso…":sel.advice?"🔄 Aggiorna":"🤖 Analizza e dai consigli"}
                 </button>
                 <div style={{fontSize:12,color:"var(--muted)",textAlign:"center",marginTop:4}}>
-                  {(sel.photosBefore||[]).length+(sel.photosAfter||[]).length>0
-                    ?"📸 "+((sel.photosBefore||[]).length+(sel.photosAfter||[]).length)+" foto allegate"
-                    :"💡 Aggiungi foto per un'analisi più precisa"}
+                  {(function(){
+                    var nb=(sel.photosBefore||[]).length, na=(sel.photosAfter||[]).length;
+                    if(nb>0&&na>0) return "🔁 Modalità confronto prima/dopo ("+nb+" + "+na+" foto)";
+                    if(na>0)       return "✅ Modalità valutazione post-potatura ("+na+" foto dopo)";
+                    if(nb>0)       return "📸 Modalità analisi pre-potatura ("+nb+" foto prima)";
+                    return "💡 Aggiungi foto per un'analisi più precisa";
+                  })()}
                 </div>
               </div>
               <button type="button" className="delbtn" onClick={function(){if(confirm("Eliminare questo olivo?"))delTree(sel.id);}}>🗑️ Elimina olivo</button>

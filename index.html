@@ -384,6 +384,7 @@ function App(){
 
   // \u2500\u2500 AI \u2500\u2500
   async function getAI(tree){
+    if(!apiKey||!apiKey.trim()){ updTree(tree.id,{advice:"❌ Chiave API mancante. Tocca l'avatar → Cambia nome utente → inserisci la chiave sk-ant-…",adviceType:""}); return; }
     setAiLoad(true);
     var area=areas.find(function(a){return a.id===tree.areaId;});
     var ptype=PT.find(function(p){return p.id===tree.pruningType;})||PT[0];
@@ -422,9 +423,14 @@ Rispondi in italiano:\
         body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,
           messages:[{role:"user",content:imgs.concat([{type:"text",text:prompt}])}]})});
       var data=await res.json();
+      if(!res.ok||data.error){
+        var errMsg="❌ Errore API ("+res.status+"): "+(data.error&&data.error.message?data.error.message:JSON.stringify(data));
+        updTree(tree.id,{advice:errMsg,adviceType:""});
+        setAiLoad(false); return;
+      }
       var text=(data.content||[]).map(function(c){return c.text||"";}).join("")||"Nessuna risposta.";
       updTree(tree.id,{advice:text,adviceType:ptype.label});
-    }catch(e){ updTree(tree.id,{advice:"Errore di rete. Controlla la connessione.",adviceType:""}); }
+    }catch(e){ updTree(tree.id,{advice:"❌ Errore: "+e.message,adviceType:""}); }
     setAiLoad(false);
   }
 

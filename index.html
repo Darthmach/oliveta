@@ -41,28 +41,28 @@
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 
 <script type="text/babel" data-presets="react">
-// \u2500\u2500\u2500 COSTANTI \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── COSTANTI ────────────────────────────────────────────────────
 const { useState, useEffect, useRef } = React;
 
 const SL = { da_potare:"Da potare", in_corso:"In corso", potato:"Potato", da_monitorare:"Da monitorare" };
-const SE = { da_potare:"\ud83d\udd34", in_corso:"\ud83d\udfe1", potato:"\ud83d\udfe2", da_monitorare:"\ud83d\udfe3" };
+const SE = { da_potare:"🔴", in_corso:"🟡", potato:"🟢", da_monitorare:"🟣" };
 const SC = { da_potare:"#c0392b", in_corso:"#d4ac0d", potato:"#27ae60", da_monitorare:"#8e44ad" };
 const DC = ["#5a6e3a","#c4703a","#4a7a9b","#8b6914","#6b4a8a","#2e7d54","#a04050","#3a7a6b"];
 const PT = [
-  { id:"policonica", label:"\ud83c\udf3f Policonica", desc:"Pi\u00f9 teste di salice su branche distanziate." },
-  { id:"vaso",       label:"\ud83c\udffa Vaso",       desc:"3-4 branche a vaso aperto, senza asse centrale." },
-  { id:"monocono",   label:"\ud83c\udf84 Monocono",   desc:"Asse centrale con branche scalari." },
-  { id:"globo",      label:"\u26bd Globo",      desc:"Forma sferica compatta." },
-  { id:"libera",     label:"\ud83c\udf33 Libera",     desc:"Interventi minimi di contenimento." },
-  { id:"altra",      label:"\u270f\ufe0f Altra",      desc:"Tipo personalizzato." },
+  { id:"policonica", label:"🌿 Policonica", desc:"Più teste di salice su branche distanziate." },
+  { id:"vaso",       label:"🏺 Vaso",       desc:"3-4 branche a vaso aperto, senza asse centrale." },
+  { id:"monocono",   label:"🎄 Monocono",   desc:"Asse centrale con branche scalari." },
+  { id:"globo",      label:"⚽ Globo",      desc:"Forma sferica compatta." },
+  { id:"libera",     label:"🌳 Libera",     desc:"Interventi minimi di contenimento." },
+  { id:"altra",      label:"✏️ Altra",      desc:"Tipo personalizzato." },
 ];
 const DB = "oliveta_v1_";
 
-// \u2500\u2500\u2500 STORAGE (localStorage) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── STORAGE (localStorage) ───────────────────────────────────────
 function lsGet(key){ try{ var v=localStorage.getItem(DB+key); return v?JSON.parse(v):null; }catch(e){return null;} }
 function lsSet(key,val){ try{ localStorage.setItem(DB+key, JSON.stringify(val)); }catch(e){} }
 
-// \u2500\u2500\u2500 UTILITY \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── UTILITY ─────────────────────────────────────────────────────
 function uid(){ return Math.random().toString(36).slice(2,9); }
 function readFile(file){
   return new Promise(function(res){ var r=new FileReader(); r.onload=function(){res(r.result);}; r.readAsDataURL(file); });
@@ -77,7 +77,7 @@ function hexRgba(hex,a){
   return "rgba("+r+","+g+","+b+","+a+")";
 }
 
-// \u2500\u2500\u2500 CSS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── CSS ─────────────────────────────────────────────────────────
 const CSS = `
   :root{--cream:#f5f0e8;--parch:#e8dfc8;--olive:#5a6e3a;--ol:#7a9150;--od:#3d4f25;--text:#2a2018;--muted:#7a6e5a;--white:#fffef9;--sh:rgba(42,32,24,.15)}
   .app{display:flex;flex-direction:column;height:100vh;height:100dvh;overflow:hidden;background:var(--cream)}
@@ -198,17 +198,17 @@ const CSS = `
   ::-webkit-scrollbar-thumb{background:var(--parch);border-radius:10px}
 `;
 
-// \u2500\u2500\u2500 HIDDEN FILE INPUT \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── HIDDEN FILE INPUT ────────────────────────────────────────────
 function HiddenInput({refProp, accept, onChange}){
   return <input ref={refProp} type="file" accept={accept||"image/*"} onChange={onChange}
     style={{opacity:0,position:"fixed",top:"-200%",left:"-200%",width:"1px",height:"1px",pointerEvents:"none"}}/>;
 }
 
-// \u2500\u2500\u2500 SEZIONE FOTO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── SEZIONE FOTO ─────────────────────────────────────────────────
 function PhotoSection({treeId,type,photos,onAdd,onDel}){
   var ref=useRef(null);
-  var label=type==="before"?"\ud83d\udcf8 Foto Prima":"\u2705 Foto Dopo";
-  var emoji=type==="before"?"\ud83d\udcf8":"\u2705";
+  var label=type==="before"?"📸 Foto Prima":"✅ Foto Dopo";
+  var emoji=type==="before"?"📸":"✅";
   function pick(){ if(ref.current){ref.current.value="";ref.current.click();} }
   return <div className="fg">
     <div className="fl">{label}</div>
@@ -217,7 +217,7 @@ function PhotoSection({treeId,type,photos,onAdd,onDel}){
         return <div className="pthumb" key={ph.id}>
           <img src={ph.data} alt=""/>
           <div className="plbl">{ph.date}</div>
-          <button type="button" className="pdel" onClick={function(){onDel(treeId,type,ph.id);}}>\u2715</button>
+          <button type="button" className="pdel" onClick={function(){onDel(treeId,type,ph.id);}}>✕</button>
         </div>;
       })}
       <button type="button" className="photo-btn" onClick={pick}>
@@ -229,7 +229,7 @@ function PhotoSection({treeId,type,photos,onAdd,onDel}){
   </div>;
 }
 
-// \u2500\u2500\u2500 OVERLAY SVG \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── OVERLAY SVG ──────────────────────────────────────────────────
 function MapOverlay({mapImgRef,areas,trees,selId,drawingAreaId,drawPoints,onSelectTree}){
   const [sz,setSz]=useState({w:0,h:0,top:0,left:0});
   useEffect(function(){
@@ -284,7 +284,7 @@ function MapOverlay({mapImgRef,areas,trees,selId,drawingAreaId,drawPoints,onSele
   </svg>;
 }
 
-// \u2500\u2500\u2500 APP PRINCIPALE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── APP PRINCIPALE ───────────────────────────────────────────────
 function App(){
   const [user,          setUser]          = useState(null);
   const [areas,         setAreas]         = useState([]);
@@ -308,7 +308,7 @@ function App(){
   const mapFileRef = useRef(null);
   const importRef  = useRef(null);
 
-  // \u2500\u2500 Caricamento da localStorage \u2500\u2500
+  // ── Caricamento da localStorage ──
   useEffect(function(){
     // Nascondi splash in ogni caso
     setTimeout(function(){
@@ -337,7 +337,7 @@ function App(){
   function updTree(id,patch){ saveTrees(trees.map(function(t){return t.id===id?Object.assign({},t,patch):t;})); }
   function delTree(id)      { saveTrees(trees.filter(function(t){return t.id!==id;})); setSelId(null); setScreen("list"); }
 
-  // \u2500\u2500 Upload mappa \u2500\u2500
+  // ── Upload mappa ──
   async function handleMapFile(file){
     if(!file)return;
     var b64=await readFile(file);
@@ -352,7 +352,7 @@ function App(){
     img.src=b64;
   }
 
-  // \u2500\u2500 Coordinate mappa \u2500\u2500
+  // ── Coordinate mappa ──
   function getXY(e){
     var el=mapImgRef.current;if(!el)return{x:50,y:50};
     var rc=el.getBoundingClientRect();
@@ -365,7 +365,7 @@ function App(){
     if(addMode)setPending(getXY(e));
   }
 
-  // \u2500\u2500 Poligoni \u2500\u2500
+  // ── Poligoni ──
   function finishDrawing(){
     if(drawPoints.length<3)return;
     saveAreas(areas.map(function(a){return a.id===drawingAreaId?Object.assign({},a,{polygon:drawPoints}):a;}));
@@ -375,7 +375,7 @@ function App(){
   function undoPoint()    { setDrawPoints(function(pts){return pts.slice(0,-1);}); }
   function clearPoly(id)  { saveAreas(areas.map(function(a){return a.id===id?Object.assign({},a,{polygon:[]}):a;})); }
 
-  // \u2500\u2500 Aggiunta olivo \u2500\u2500
+  // ── Aggiunta olivo ──
   function addTree(areaId,name){
     var area=areas.find(function(a){return a.id===areaId;});
     var cnt=trees.filter(function(t){return t.areaId===areaId;}).length+1;
@@ -387,7 +387,7 @@ function App(){
     setOpenA(function(o){var n=Object.assign({},o);n[areaId]=true;return n;});
   }
 
-  // \u2500\u2500 AI \u2500\u2500
+  // ── AI ──
   async function getAI(tree){
     if(!apiKey||!apiKey.trim()){ updTree(tree.id,{advice:"❌ Chiave API mancante. Tocca l'avatar → Cambia nome utente → inserisci la chiave sk-ant-…",adviceType:""}); return; }
     setAiLoad(true);
@@ -439,7 +439,7 @@ Rispondi in italiano:\
     setAiLoad(false);
   }
 
-  // \u2500\u2500 Foto \u2500\u2500
+  // ── Foto ──
   async function addPhoto(treeId,type,file){
     var b64=await readFile(file),key=type==="before"?"photosBefore":"photosAfter";
     var entry={id:uid(),data:b64,date:new Date().toLocaleDateString("it-IT")};
@@ -456,7 +456,7 @@ Rispondi in italiano:\
     }));
   }
 
-  // \u2500\u2500 Export / Import \u2500\u2500
+  // ── Export / Import ──
   function exportData(){
     var payload={version:2,exportedAt:new Date().toISOString(),user:user,areas:areas,trees:trees,map:mapImg};
     var blob=new Blob([JSON.stringify(payload)],{type:"application/json"});
@@ -469,14 +469,14 @@ Rispondi in italiano:\
     if(!file)return;
     try{
       var text=await file.text(),data=JSON.parse(text);
-      if(!data.version||!data.areas||!data.trees){setImportMsg("\u274c File non valido.");return;}
+      if(!data.version||!data.areas||!data.trees){setImportMsg("❌ File non valido.");return;}
       if(data.user) saveUser(data.user);
       if(data.areas)saveAreas(data.areas);
       if(data.trees)saveTrees(data.trees);
       if(data.map)  saveMap(data.map);
-      setImportMsg("\u2705 Ripristinati "+data.trees.length+" olivi e "+data.areas.length+" aree.");
+      setImportMsg("✅ Ripristinati "+data.trees.length+" olivi e "+data.areas.length+" aree.");
       setTimeout(function(){setShowBackup(false);setImportMsg("");},2500);
-    }catch(e){setImportMsg("\u274c Errore durante l'importazione.");}
+    }catch(e){setImportMsg("❌ Errore durante l'importazione.");}
   }
 
   var tot=trees.length,
@@ -489,8 +489,8 @@ Rispondi in italiano:\
   var mapHint=drawingAreaId
     ?(drawPoints.length===0?"Tocca per aggiungere i vertici"
       :drawPoints.length<3?"Aggiungi ancora "+(3-drawPoints.length)+" punt"+(3-drawPoints.length===1?"o":"i")
-      :"Aggiungi punti o \u2705 per chiudere")
-    :addMode?"\ud83c\udf31 Tocca per posizionare l'olivo":null;
+      :"Aggiungi punti o ✅ per chiudere")
+    :addMode?"🌱 Tocca per posizionare l'olivo":null;
 
   if(showSetup) return <Setup apiKey={apiKey} onDone={function(n,k){saveUser(n);saveApiKey(k);setShowSetup(false);
     setTimeout(function(){var sp=document.getElementById("splash");if(sp)sp.style.display="none";},100);
@@ -500,16 +500,16 @@ Rispondi in italiano:\
     <style>{CSS}</style>
     <div className="app">
       <div className="hdr">
-        <span style={{fontSize:22}}>\ud83e\uded2</span>
+        <span style={{fontSize:22}}>🫒</span>
         <div style={{flex:1}}>
           <div className="hdr-title">Oliveta Manager</div>
-          <div className="hdr-sub">{pot} potati \u00b7 {inc} in corso \u00b7 {dap} da fare</div>
+          <div className="hdr-sub">{pot} potati · {inc} in corso · {dap} da fare</div>
         </div>
         <div className="avatar" onClick={function(){setShowBackup(true);}}>{user?user[0].toUpperCase():"?"}</div>
       </div>
 
       {activeScreen!=="detail"&&<div className="tabbar">
-        {[["map","\ud83d\uddfa\ufe0f","Mappa"],["list","\ud83e\uded2","Olivi"],["stats","\ud83d\udcca","Stats"]].map(function(p){
+        {[["map","🗺️","Mappa"],["list","🫒","Olivi"],["stats","📊","Stats"]].map(function(p){
           return <button key={p[0]} className={"tabbtn"+(activeScreen===p[0]?" on":"")}
             onClick={function(){setScreen(p[0]);setAddMode(false);}}>
             <span className="icon">{p[1]}</span>{p[2]}
@@ -523,10 +523,10 @@ Rispondi in italiano:\
         <div className={"screen mapscreen"+(activeScreen==="map"?"":" hidden")}>
           {!mapImg?(
             <div className="upzone">
-              <div style={{fontSize:22,fontFamily:"'Playfair Display',serif"}}>\ud83d\uddfa\ufe0f Carica la tua mappa</div>
+              <div style={{fontSize:22,fontFamily:"'Playfair Display',serif"}}>🗺️ Carica la tua mappa</div>
               <div style={{fontSize:14,opacity:.8,lineHeight:1.6}}>Screenshot di Google Maps o foto JPG/PNG dall'alto dell'oliveta.</div>
-              <button className="upbtn" onClick={function(){mapFileRef.current&&mapFileRef.current.click();}}>\ud83d\udcc2 Scegli file JPG / PNG</button>
-              <div style={{fontSize:12,opacity:.45}}>Privata \u2014 salvata sul tuo dispositivo</div>
+              <button className="upbtn" onClick={function(){mapFileRef.current&&mapFileRef.current.click();}}>📂 Scegli file JPG / PNG</button>
+              <div style={{fontSize:12,opacity:.45}}>Privata — salvata sul tuo dispositivo</div>
             </div>
           ):(
             <div className="maparea" onClick={handleMapTap}>
@@ -536,13 +536,13 @@ Rispondi in italiano:\
                 onSelectTree={function(id){if(!drawingAreaId&&!addMode){setSelId(id);setScreen("detail");}}}/>
               <div className="maptoolbar">
                 {!drawingAreaId&&<>
-                  <button className={"mtbtn"+(addMode?" on":"")} onClick={function(e){e.stopPropagation();setAddMode(function(m){return !m;});}}>{addMode?"\ud83c\udf31":"\u2795"}</button>
-                  <button className="mtbtn" onClick={function(e){e.stopPropagation();mapFileRef.current&&mapFileRef.current.click();}}>\ud83d\uddfa\ufe0f</button>
+                  <button className={"mtbtn"+(addMode?" on":"")} onClick={function(e){e.stopPropagation();setAddMode(function(m){return !m;});}}>{addMode?"🌱":"➕"}</button>
+                  <button className="mtbtn" onClick={function(e){e.stopPropagation();mapFileRef.current&&mapFileRef.current.click();}}>🗺️</button>
                 </>}
                 {drawingAreaId&&<>
-                  {drawPoints.length>=3&&<button className="mtbtn green" onClick={function(e){e.stopPropagation();finishDrawing();}}>\u2705</button>}
-                  {drawPoints.length>0&&<button className="mtbtn" onClick={function(e){e.stopPropagation();undoPoint();}}>\u21a9\ufe0f</button>}
-                  <button className="mtbtn red" onClick={function(e){e.stopPropagation();cancelDrawing();}}>\u2715</button>
+                  {drawPoints.length>=3&&<button className="mtbtn green" onClick={function(e){e.stopPropagation();finishDrawing();}}>✅</button>}
+                  {drawPoints.length>0&&<button className="mtbtn" onClick={function(e){e.stopPropagation();undoPoint();}}>↩️</button>}
+                  <button className="mtbtn red" onClick={function(e){e.stopPropagation();cancelDrawing();}}>✕</button>
                 </>}
               </div>
               {mapHint&&<div className="maphint">{mapHint}</div>}
@@ -552,7 +552,7 @@ Rispondi in italiano:\
 
         {/* OLIVI */}
         <div className={"screen listscreen"+(activeScreen==="list"?"":" hidden")}>
-          <button className="mgbtn" onClick={function(){setShowAreas(true);}}>\u2699\ufe0f Gestisci aree e poligoni</button>
+          <button className="mgbtn" onClick={function(){setShowAreas(true);}}>⚙️ Gestisci aree e poligoni</button>
           {areas.map(function(area){
             var at=trees.filter(function(t){return t.areaId===area.id;}),isO=!!openA[area.id];
             return <div className="acard" key={area.id}>
@@ -560,9 +560,9 @@ Rispondi in italiano:\
                 <div className="abadge" style={{background:area.color}}>{area.label}</div>
                 <div style={{flex:1}}>
                   <div className="aname">{area.name}</div>
-                  <div className="acnt">{at.length} olivi \u00b7 {at.filter(function(t){return t.status==="potato";}).length} potati \u00b7 {area.polygon&&area.polygon.length>2?"\u270f\ufe0f disegnata":"\u2b1c nessun confine"}</div>
+                  <div className="acnt">{at.length} olivi · {at.filter(function(t){return t.status==="potato";}).length} potati · {area.polygon&&area.polygon.length>2?"✏️ disegnata":"⬜ nessun confine"}</div>
                 </div>
-                <span className={"chev"+(isO?" op":"")}>\u25bc</span>
+                <span className={"chev"+(isO?" op":"")}>▼</span>
               </div>
               {isO&&<div className="tlist">
                 {at.map(function(tree){
@@ -571,7 +571,7 @@ Rispondi in italiano:\
                     onClick={function(){setSelId(tree.id);setScreen("detail");}}>
                     <div className="tnum" style={{background:area.color}}>{tree.name}</div>
                     <div className="tlbl">
-                      <div>{tree.notes?tree.notes.slice(0,30)+(tree.notes.length>30?"\u2026":""):"\u2014"}</div>
+                      <div>{tree.notes?tree.notes.slice(0,30)+(tree.notes.length>30?"…":""):"—"}</div>
                       <div style={{fontSize:11,color:"var(--muted)"}}>{pt?pt.label:""}</div>
                     </div>
                     <span className="tdot" style={{background:SC[tree.status]}}/>
@@ -588,7 +588,7 @@ Rispondi in italiano:\
           <div className="sgrid">
             <div className="scard"><div className="snum">{tot}</div><div className="slbl">Totale</div></div>
             <div className="scard"><div className="snum">{tot?Math.round(pot/tot*100):0}%</div><div className="slbl">Completato</div></div>
-            <div className="scard"><div className="snum">{pot}</div><div className="slbl">Potati \u2705</div></div>
+            <div className="scard"><div className="snum">{pot}</div><div className="slbl">Potati ✅</div></div>
             <div className="scard"><div className="snum">{inc}</div><div className="slbl">In corso</div></div>
           </div>
           <div className="sectit">Per stato</div>
@@ -609,7 +609,7 @@ Rispondi in italiano:\
             <div className="dh">
               <div style={{width:30,height:30,borderRadius:8,background:selA?selA.color:"#888",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:700,fontSize:14,flexShrink:0}}>{selA?selA.label:""}</div>
               <div className="dtitle">Olivo {sel.name}</div>
-              <button className="backbtn" onClick={function(){setScreen("list");}}>\u2190 Lista</button>
+              <button className="backbtn" onClick={function(){setScreen("list");}}>← Lista</button>
             </div>
             <div className="dbody">
               <div className="fg"><div className="fl">Stato</div>
@@ -620,7 +620,7 @@ Rispondi in italiano:\
               <div className="fg"><div className="fl">Etichetta</div>
                 <input type="text" value={sel.name} onChange={function(e){updTree(sel.id,{name:e.target.value});}}/>
               </div>
-              <div className="fg"><div className="fl">\u2702\ufe0f Tipo di potatura</div>
+              <div className="fg"><div className="fl">✂️ Tipo di potatura</div>
                 <div className="ptypes">
                   {PT.map(function(pt){
                     return <button key={pt.id} type="button" className={"ptbtn"+(sel.pruningType===pt.id?" on":"")}
@@ -631,26 +631,26 @@ Rispondi in italiano:\
                   {(PT.find(function(p){return p.id===sel.pruningType;})||{}).desc}
                 </div>}
               </div>
-              <div className="fg"><div className="fl">\ud83d\udcdd Note</div>
-                <textarea value={sel.notes} placeholder="Es: chioma sbilanciata, succhioni abbondanti\u2026" onChange={function(e){updTree(sel.id,{notes:e.target.value});}}/>
+              <div className="fg"><div className="fl">📝 Note</div>
+                <textarea value={sel.notes} placeholder="Es: chioma sbilanciata, succhioni abbondanti…" onChange={function(e){updTree(sel.id,{notes:e.target.value});}}/>
               </div>
               <PhotoSection treeId={sel.id} type="before" photos={sel.photosBefore||[]} onAdd={addPhoto} onDel={delPhoto}/>
               <PhotoSection treeId={sel.id} type="after"  photos={sel.photosAfter||[]}  onAdd={addPhoto} onDel={delPhoto}/>
-              <div className="fg"><div className="fl">\ud83e\udd16 Analisi AI Potatura</div>
+              <div className="fg"><div className="fl">🤖 Analisi AI Potatura</div>
                 {sel.advice&&<div className="advbox">
-                  <div className="advtitle">\ud83e\uded2 Agronomo virtuale{sel.adviceType&&<span className="advtype">{sel.adviceType}</span>}</div>
+                  <div className="advtitle">🫒 Agronomo virtuale{sel.adviceType&&<span className="advtype">{sel.adviceType}</span>}</div>
                   <div className="advtext">{sel.advice}</div>
                 </div>}
                 <button type="button" className="aibtn" disabled={aiLoad} onClick={function(){getAI(sel);}}>
-                  {aiLoad?"\u23f3 Analisi in corso\u2026":sel.advice?"\ud83d\udd04 Aggiorna":"\ud83e\udd16 Analizza e dai consigli"}
+                  {aiLoad?"⏳ Analisi in corso…":sel.advice?"🔄 Aggiorna":"🤖 Analizza e dai consigli"}
                 </button>
                 <div style={{fontSize:12,color:"var(--muted)",textAlign:"center",marginTop:4}}>
                   {(sel.photosBefore||[]).length+(sel.photosAfter||[]).length>0
-                    ?"\ud83d\udcf8 "+((sel.photosBefore||[]).length+(sel.photosAfter||[]).length)+" foto allegate"
-                    :"\ud83d\udca1 Aggiungi foto per un'analisi pi\u00f9 precisa"}
+                    ?"📸 "+((sel.photosBefore||[]).length+(sel.photosAfter||[]).length)+" foto allegate"
+                    :"💡 Aggiungi foto per un'analisi più precisa"}
                 </div>
               </div>
-              <button type="button" className="delbtn" onClick={function(){if(confirm("Eliminare questo olivo?"))delTree(sel.id);}}>\ud83d\uddd1\ufe0f Elimina olivo</button>
+              <button type="button" className="delbtn" onClick={function(){if(confirm("Eliminare questo olivo?"))delTree(sel.id);}}>🗑️ Elimina olivo</button>
             </div>
           </>}
         </div>
@@ -676,7 +676,7 @@ Rispondi in italiano:\
   </>;
 }
 
-// \u2500\u2500\u2500 SETUP \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── SETUP ───────────────────────────────────────────────────────
 function Setup({apiKey,onDone}){
   const [name,setName]=useState("");
   const [key,setKey]=useState(apiKey||"");
@@ -685,10 +685,10 @@ function Setup({apiKey,onDone}){
       <div style={{fontSize:52,marginBottom:10}}>🫒</div>
       <div className="stit">Oliveta Manager</div>
       <div className="ssub">I dati vengono salvati <strong>sul tuo dispositivo</strong>.<br/>Usa il backup per spostarli su altri dispositivi.</div>
-      <input className="sinput" type="text" placeholder="Il tuo nome o soprannome\u2026"
+      <input className="sinput" type="text" placeholder="Il tuo nome o soprannome…"
         value={name} onChange={function(e){setName(e.target.value);}}
         onKeyDown={function(e){if(e.key==="Enter"&&name.trim()&&key.trim())onDone(name.trim(),key.trim());}}/>
-      <input className="sinput" type="password" placeholder="Chiave API Anthropic (sk-ant-\u2026)"
+      <input className="sinput" type="password" placeholder="Chiave API Anthropic (sk-ant-…)"
         value={key} onChange={function(e){setKey(e.target.value);}}
         onKeyDown={function(e){if(e.key==="Enter"&&name.trim()&&key.trim())onDone(name.trim(),key.trim());}}/>
       <div style={{fontSize:11,color:"var(--muted)",marginBottom:14,textAlign:"left",lineHeight:1.6,padding:"8px 10px",background:"var(--cream)",borderRadius:8,border:"1px solid var(--parch)"}}>
@@ -701,17 +701,17 @@ function Setup({apiKey,onDone}){
   </div>;
 }
 
-// \u2500\u2500\u2500 MODALE AGGIUNTA OLIVO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── MODALE AGGIUNTA OLIVO ────────────────────────────────────────
 function AddModal({areas,onConfirm,onCancel}){
   const [areaId,setAreaId]=useState(areas[0]?areas[0].id:"");
   const [name,setName]=useState("");
   var sa=areas.find(function(a){return a.id===areaId;});
   return <div className="moverlay"><div className="modal">
-    <div className="mtit">\ud83c\udf31 Nuovo Olivo</div>
+    <div className="mtit">🌱 Nuovo Olivo</div>
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
       <div className="fg"><div className="fl">Area</div>
         <select value={areaId} onChange={function(e){setAreaId(e.target.value);}}>
-          {areas.map(function(a){return <option key={a.id} value={a.id}>{a.label} \u2014 {a.name}</option>;})}
+          {areas.map(function(a){return <option key={a.id} value={a.id}>{a.label} — {a.name}</option>;})}
         </select>
       </div>
       <div className="fg"><div className="fl">Etichetta (opzionale)</div>
@@ -725,14 +725,14 @@ function AddModal({areas,onConfirm,onCancel}){
   </div></div>;
 }
 
-// \u2500\u2500\u2500 MODALE GESTIONE AREE \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── MODALE GESTIONE AREE ─────────────────────────────────────────
 function AreasModal({areas,onSave,onClose,onStartDraw,onClearPoly}){
   const [local,setLocal]=useState(areas.map(function(a){return Object.assign({},a);}));
   function upd(id,patch){setLocal(local.map(function(a){return a.id===id?Object.assign({},a,patch):a;}));}
   return <div className="moverlay"><div className="modal">
-    <div className="mtit">\u2699\ufe0f Gestisci Aree</div>
+    <div className="mtit">⚙️ Gestisci Aree</div>
     <div style={{fontSize:13,color:"var(--muted)",marginBottom:14,lineHeight:1.5}}>
-      Modifica nome e colore. Usa <b>\u270f\ufe0f Disegna</b> per tracciare il confine sulla mappa.
+      Modifica nome e colore. Usa <b>✏️ Disegna</b> per tracciare il confine sulla mappa.
     </div>
     {local.map(function(area){
       var hasPoly=area.polygon&&area.polygon.length>2;
@@ -741,14 +741,14 @@ function AreasModal({areas,onSave,onClose,onStartDraw,onClearPoly}){
           <input type="color" value={area.color} className="ci" onChange={function(e){upd(area.id,{color:e.target.value});}}/>
           <input className="li" type="text" value={area.label} maxLength={3} onChange={function(e){upd(area.id,{label:e.target.value.toUpperCase()});}} placeholder="A"/>
           <input className="ni" type="text" value={area.name} onChange={function(e){upd(area.id,{name:e.target.value});}} placeholder="Nome area"/>
-          <button type="button" className="ibtn" onClick={function(){setLocal(local.filter(function(a){return a.id!==area.id;}));}}>\ud83d\uddd1\ufe0f</button>
+          <button type="button" className="ibtn" onClick={function(){setLocal(local.filter(function(a){return a.id!==area.id;}));}}>🗑️</button>
         </div>
         <div className="arow-poly">
           {hasPoly
-            ?<><span style={{color:"#27ae60",fontWeight:700}}>\u2705 {area.polygon.length} punti</span>
+            ?<><span style={{color:"#27ae60",fontWeight:700}}>✅ {area.polygon.length} punti</span>
                 <button type="button" className="draw-btn clear" onClick={function(){upd(area.id,{polygon:[]});onClearPoly(area.id);}}>Cancella</button></>
-            :<span>\u2b1c Nessun confine</span>}
-          <button type="button" className="draw-btn start" style={{marginLeft:"auto"}} onClick={function(){onSave(local);onStartDraw(area.id);}}>\u270f\ufe0f Disegna</button>
+            :<span>⬜ Nessun confine</span>}
+          <button type="button" className="draw-btn start" style={{marginLeft:"auto"}} onClick={function(){onSave(local);onStartDraw(area.id);}}>✏️ Disegna</button>
         </div>
       </div>;
     })}
@@ -756,7 +756,7 @@ function AreasModal({areas,onSave,onClose,onStartDraw,onClearPoly}){
       var i=local.length,lbl=i<26?String.fromCharCode(65+i):"Z"+i;
       setLocal(local.concat([{id:uid(),label:lbl,name:"Area "+lbl,color:DC[i%DC.length],polygon:[]}]));
     }} style={{width:"100%",padding:"12px",background:"var(--cream)",border:"1.5px dashed var(--ol)",borderRadius:10,cursor:"pointer",fontSize:14,color:"var(--olive)",fontWeight:700,marginTop:4}}>
-      \uff0b Aggiungi area
+      ＋ Aggiungi area
     </button>
     <div className="mact">
       <button className="btns" onClick={onClose}>Chiudi</button>
@@ -765,36 +765,36 @@ function AreasModal({areas,onSave,onClose,onStartDraw,onClearPoly}){
   </div></div>;
 }
 
-// \u2500\u2500\u2500 MODALE BACKUP \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── MODALE BACKUP ────────────────────────────────────────────────
 function BackupModal({user,trees,areas,importMsg,onExport,onImport,onChangeUser,onClose}){
   var pot=trees.filter(function(t){return t.status==="potato";}).length;
   return <div className="moverlay"><div className="modal">
-    <div className="mtit">\u2699\ufe0f Dati e Backup</div>
+    <div className="mtit">⚙️ Dati e Backup</div>
     <div className="bk-stats">
       <div className="bk-stat"><div className="bk-stat-n">{trees.length}</div><div className="bk-stat-l">Olivi</div></div>
       <div className="bk-stat"><div className="bk-stat-n">{areas.length}</div><div className="bk-stat-l">Aree</div></div>
       <div className="bk-stat"><div className="bk-stat-n">{pot}</div><div className="bk-stat-l">Potati</div></div>
     </div>
-    {importMsg&&<div className={"bk-msg "+(importMsg.startsWith("\u2705")?"ok":"err")}>{importMsg}</div>}
+    {importMsg&&<div className={"bk-msg "+(importMsg.startsWith("✅")?"ok":"err")}>{importMsg}</div>}
     <div className="bk-row">
-      <div className="fl" style={{marginBottom:4}}>\ud83d\udcbe Salva backup</div>
-      <button type="button" className="bk-btn primary" onClick={onExport}>\u2b07\ufe0f Scarica oliveta-backup.json</button>
+      <div className="fl" style={{marginBottom:4}}>💾 Salva backup</div>
+      <button type="button" className="bk-btn primary" onClick={onExport}>⬇️ Scarica oliveta-backup.json</button>
       <div className="bk-info">Scarica un file con tutti i tuoi dati. Conservalo su Google Drive o nella cartella Download.</div>
     </div>
     <div className="bk-row">
-      <div className="fl" style={{marginBottom:4}}>\ud83d\udcc2 Ripristina backup</div>
-      <button type="button" className="bk-btn secondary" onClick={onImport}>\u2b06\ufe0f Carica oliveta-backup.json</button>
+      <div className="fl" style={{marginBottom:4}}>📂 Ripristina backup</div>
+      <button type="button" className="bk-btn secondary" onClick={onImport}>⬆️ Carica oliveta-backup.json</button>
       <div className="bk-info">Seleziona un backup precedente per ripristinare olivi, aree e mappa. I dati attuali verranno sostituiti.</div>
     </div>
     <div className="bk-row">
-      <div className="fl" style={{marginBottom:4}}>\ud83d\udc64 Account</div>
-      <button type="button" className="bk-btn danger" onClick={onChangeUser}>\u270f\ufe0f Cambia nome utente ({user})</button>
+      <div className="fl" style={{marginBottom:4}}>👤 Account</div>
+      <button type="button" className="bk-btn danger" onClick={onChangeUser}>✏️ Cambia nome utente ({user})</button>
     </div>
     <button type="button" className="btns" style={{width:"100%",marginTop:4}} onClick={onClose}>Chiudi</button>
   </div></div>;
 }
 
-// \u2500\u2500\u2500 AVVIO \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// ─── AVVIO ────────────────────────────────────────────────────────
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(<App/>);
 </script>

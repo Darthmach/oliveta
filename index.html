@@ -393,40 +393,105 @@ function App(){
     setAiLoad(true);
     var area=areas.find(function(a){return a.id===tree.areaId;});
     var ptype=PT.find(function(p){return p.id===tree.pruningType;})||PT[0];
-    var allPh=(tree.photosBefore||[]).concat(tree.photosAfter||[]).slice(0,3);
-    var imgs=allPh.map(function(ph){
-      var parts=ph.data.split(","),mt=(parts[0].match(/data:([^;]+)/)||["","image/jpeg"])[1];
-      return{type:"image",source:{type:"base64",media_type:mt,data:parts[1]}};
-    });
-    var prompt="Sei un agronomo esperto in olivicoltura.\
-"+(imgs.length?"Analizza le foto allegate.\
-\
-":"")
-      +"DATI:\
+    var phBefore=(tree.photosBefore||[]).slice(0,2);
+    var phAfter=(tree.photosAfter||[]).slice(0,2);
+    var hasBefore=phBefore.length>0;
+    var hasAfter=phAfter.length>0;
+
+    // Costruisce i blocchi immagine con testo separatore per indicare before/after
+    var contentBlocks=[];
+    if(hasBefore){
+      contentBlocks.push({type:"text",text:"📸 FOTO PRIMA DELLA POTATURA ("+(phBefore.length)+" immagine"+(phBefore.length>1?"i":"")+"):"});
+      phBefore.forEach(function(ph){
+        var parts=ph.data.split(","),mt=(parts[0].match(/data:([^;]+)/)||["","image/jpeg"])[1];
+        contentBlocks.push({type:"image",source:{type:"base64",media_type:mt,data:parts[1]}});
+      });
+    }
+    if(hasAfter){
+      contentBlocks.push({type:"text",text:"✅ FOTO DOPO LA POTATURA ("+(phAfter.length)+" immagine"+(phAfter.length>1?"i":"")+"):"});
+      phAfter.forEach(function(ph){
+        var parts=ph.data.split(","),mt=(parts[0].match(/data:([^;]+)/)||["","image/jpeg"])[1];
+        contentBlocks.push({type:"image",source:{type:"base64",media_type:mt,data:parts[1]}});
+      });
+    }
+
+    var dati="DATI OLIVO:\
 - Area: "+(area?area.name:"")+"\
 - Olivo: "+tree.name+"\
-- Stato: "+SL[tree.status]
-      +"\
-- Tipo potatura: "+ptype.label+" - "+ptype.desc+"\
-- Note: "+(tree.notes||"nessuna")
-      +"\
+- Stato: "+SL[tree.status]+"\
+- Forma allevamento: "+ptype.label+" — "+ptype.desc+"\
+- Note: "+(tree.notes||"nessuna");
+
+    var prompt;
+    if(hasAfter && hasBefore){
+      // Modalità confronto prima/dopo
+      prompt="Sei un agronomo esperto in olivicoltura.\
+Hai ricevuto foto PRIMA e DOPO la potatura. Confrontale e valuta il lavoro eseguito.\
 \
-Rispondi in italiano:\
-**VALUTAZIONE** (2-3 righe)\
+"+dati+"\
 \
-**OBIETTIVO "+ptype.label.toUpperCase()
-      +"**\
+Rispondi in italiano con questa struttura:\
+**VALUTAZIONE DEL LAVORO ESEGUITO** (confronta le foto: cosa è cambiato, qualità del taglio)\
+\
+**OBIETTIVO "+ptype.label.toUpperCase()+" — RISULTATO RAGGIUNTO?**\
+(La forma "+ptype.label+" è stata rispettata? Cosa è stato fatto bene?)\
+\
+**CORREZIONI O INTERVENTI RESIDUI** (max 5 punti)\
+(Cosa rimane da fare o correggere in questa o nella prossima stagione)\
+\
+**CURA POST-POTATURA**\
+(Trattamenti, protezione tagli, irrigazione consigliata)\
+\
+**GIUDIZIO COMPLESSIVO** (da 1 a 10 con motivazione breve)";
+    } else if(hasAfter && !hasBefore){
+      // Solo foto dopo: valuta il risultato finale
+      prompt="Sei un agronomo esperto in olivicoltura.\
+Analizza le foto della potatura già eseguita e valuta il risultato.\
+\
+"+dati+"\
+\
+Rispondi in italiano con questa struttura:\
+**VALUTAZIONE DELLA POTATURA ESEGUITA** (2-3 righe su quello che si vede)\
+\
+**OBIETTIVO "+ptype.label.toUpperCase()+" — RISULTATO RAGGIUNTO?**\
+(La forma "+ptype.label+" è stata rispettata? Struttura corretta?)\
+\
+**PUNTI DI FORZA DEL LAVORO**\
+\
+**INTERVENTI RESIDUI O CORREZIONI** (max 5 punti)\
+(Cosa rimane da fare o migliorare)\
+\
+**CURA POST-POTATURA**\
+(Trattamenti, protezione tagli, irrigazione)\
+\
+**GIUDIZIO COMPLESSIVO** (da 1 a 10 con motivazione breve)";
+    } else {
+      // Solo foto prima o nessuna foto: suggerimenti su cosa fare
+      prompt="Sei un agronomo esperto in olivicoltura.\
+"+(hasBefore?"Analizza le foto allegate per valutare lo stato attuale dell'olivo.\
+\
+":"")+dati+"\
+\
+Rispondi in italiano con questa struttura:\
+**VALUTAZIONE STATO ATTUALE** (2-3 righe)\
+\
+**OBIETTIVO "+ptype.label.toUpperCase()+"**\
+(Come applicare questa forma a questo olivo specifico)\
 \
 **OPERAZIONI DA ESEGUIRE** (max 6 punti)\
 \
-**PRIORITA E PERIODO**\
+**PRIORITÀ E PERIODO CONSIGLIATO**\
 \
-**ATTENZIONE** (errori da evitare)";
+**ATTENZIONE** (errori da evitare con questa forma)";
+    }
+
+    contentBlocks.push({type:"text",text:prompt});
+
     try{
       var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
         headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":apiKey},
-        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,
-          messages:[{role:"user",content:imgs.concat([{type:"text",text:prompt}])}]})});
+        body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1400,
+          messages:[{role:"user",content:contentBlocks}]})});
       var data=await res.json();
       if(!res.ok||data.error){
         var errMsg="❌ Errore API ("+res.status+"): "+(data.error&&data.error.message?data.error.message:JSON.stringify(data));

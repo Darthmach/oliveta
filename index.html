@@ -424,7 +424,7 @@ Rispondi in italiano:\
 **ATTENZIONE** (errori da evitare)";
     try{
       var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
-        headers:{"Content-Type":"application/json","anthropic-dangerous-direct-browser-access":"true","x-api-key":apiKey},
+        headers:{"Content-Type":"application/json","anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true","x-api-key":apiKey},
         body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1200,
           messages:[{role:"user",content:imgs.concat([{type:"text",text:prompt}])}]})});
       var data=await res.json();
